@@ -31,7 +31,7 @@ Antes de começar, verifique se você atendeu aos seguintes requisitos:
 
 **1. Clone o repositório:**
 ```bash
-git clone https://github.com/seuusuario/todo-api-node.git
+git clone https://github.com/RobertoTheDev/todo-api-node.git
 cd todo-api-node
 ```
 **2. Instale as dependências:**
