@@ -1,32 +1,14 @@
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-
+name: debug
+on: push
 jobs:
-  test:
-    name: Lint e testes (Node ${{ matrix.node }})
+  d:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-
-      - name: Cache do binário do MongoDB (testes)
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          key: mongodb-binaries-${{ runner.os }}-v1
-
+        with: { node-version: 24 }
       - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm test -- --coverage
+      - run: node debug.js
+      - run: node debug.js 7.0.24
+      - run: node debug.js 8.0.15
+      - run: npm ls mongodb
