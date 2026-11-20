@@ -1,17 +1,21 @@
-FROM node:24-alpine
-
+FROM composer:2 AS vendor
 WORKDIR /app
-ENV NODE_ENV=production
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist --optimize-autoloader
 
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+FROM php:8.4-cli-alpine
+WORKDIR /var/www/html
 
-COPY src ./src
+RUN docker-php-ext-install pdo_mysql
 
-USER node
-EXPOSE 3000
+COPY . .
+COPY --from=vendor /app/vendor ./vendor
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+RUN php artisan package:discover --ansi \
+    && chown -R www-data:www-data storage bootstrap/cache
 
-CMD ["node", "src/server.js"]
+USER www-data
+EXPOSE 8000
+
+# Aplica as migrations e sobe o servidor embutido do PHP
+CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"]

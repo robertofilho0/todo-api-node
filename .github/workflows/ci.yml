@@ -2,31 +2,63 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 jobs:
-  test:
-    name: Lint e testes (Node ${{ matrix.node }})
+  tests:
+    name: Pint e PHPUnit (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [22, 24]
+        php: ['8.3', '8.4']
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: shivammathur/setup-php@v2
         with:
-          node-version: ${{ matrix.node }}
-          cache: npm
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
 
-      - name: Cache do binário do MongoDB (testes)
+      - name: Cache do Composer
         uses: actions/cache@v5
         with:
-          path: ~/.cache/mongodb-binaries
-          key: mongodb-binaries-${{ runner.os }}-v1
+          path: ~/.composer/cache/files
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm test -- --coverage
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: vendor/bin/pint --test
+      - run: php artisan test
+
+  mysql:
+    name: Migrations no MySQL
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: todo
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: todo
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan migrate --seed --force
+      - run: php artisan migrate:rollback --force && php artisan migrate --force
